@@ -20,6 +20,17 @@
 #define MQTT_PUBLISH_TOPIC        DEFAULT_TOPIC "state"
 #define MQTT_AVAILABILITY_TOPIC   DEFAULT_TOPIC "availability"
 #define MQTT_AVAILABILITY_MESSAGE "online"
+#define MQTT_UPTIME_TOPIC         DEFAULT_TOPIC "uptime"
 
+// Delay between INA226 readings
+#define READ_STEP_MS       1000
+// Publishing data period
+#define PUBLISH_DELAY_MS   1000
+// Reconnecting to MQTT server delay
+#define RECONNECT_DELAY_MS 5000
+
+// IO pins
+#define SDA_PIN 0
+#define SCL_PIN 2
 
 #endif // _DEF_H_

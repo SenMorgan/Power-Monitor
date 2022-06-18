@@ -53,7 +53,14 @@ void setup()
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
     reconnect();
 
-    ina226.begin(INA226_ADDRESS);
+    // Try to connect to INA226 twice and reset if it fails
+    if (ina226.begin(INA226_ADDRESS))
+    {
+        delay(1000);
+        if (ina226.begin(INA226_ADDRESS))
+            ESP.restart();
+    }
+
     ina226.configure(INA226_AVERAGES_512, INA226_BUS_CONV_TIME_1100US,
                      INA226_SHUNT_CONV_TIME_1100US, INA226_MODE_SHUNT_BUS_CONT);
     ina226.calibrate(0.0005, 40);

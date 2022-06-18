@@ -56,10 +56,10 @@ void setup()
     reconnect();
 
     // Try to connect to INA226 twice and reset if it fails
-    if (ina226.begin(INA226_ADDRESS))
+    if (ina226.begin(INA226_ADDRESS) != 1)
     {
         delay(1000);
-        if (ina226.begin(INA226_ADDRESS))
+        if (ina226.begin(INA226_ADDRESS) != 1)
             ESP.restart();
     }
 

@@ -30,7 +30,9 @@
 #define RECONNECT_DELAY_MS 5000
 
 // IO pins
-#define SDA_PIN 0
-#define SCL_PIN 2
+#define SDA_PIN    0
+#define SCL_PIN    2
+// WARN: ESP-01 built-in LED can't be used if I2C is enabled on pins 0 and 2
+#define STATUS_LED 2
 
 #endif // _DEF_H_

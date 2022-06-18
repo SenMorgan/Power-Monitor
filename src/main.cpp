@@ -41,10 +41,16 @@ void setup()
     ArduinoOTA.setHostname(OTA_HOSTNAME);
     ArduinoOTA.setPassword(OTA_PASSWORD);
     ArduinoOTA.begin();
+    // Blink with built-in LED to indicate OTA update is in progress
+    ArduinoOTA.onStart([]()
+                       { pinMode(STATUS_LED, OUTPUT); });
+    ArduinoOTA.onProgress([](uint16_t progress, uint16_t total)
+                          { digitalWrite(STATUS_LED, !digitalRead(STATUS_LED)); });
+    ArduinoOTA.onEnd([]()
+                     { Wire.begin(SDA_PIN, SCL_PIN); });
 
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
-    Serial.println("Connecting to MQTT server...");
     reconnect();
 
     ina226.begin(INA226_ADDRESS);

@@ -16,6 +16,7 @@ PubSubClient mqttClient(espClient);
 INA226 ina226(Wire);
 
 void read_ina226_values(void);
+void callback(String topic, byte *payload, unsigned int length);
 void reconnect(void);
 void publish_data(void);
 
@@ -51,6 +52,7 @@ void setup()
 
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
+    mqttClient.setCallback(callback);
     reconnect();
 
     // Try to connect to INA226 twice and reset if it fails
@@ -115,6 +117,19 @@ void read_ina226_values(void)
             EEPROM.put(0, inverter_wh);
             EEPROM.commit();
         }
+    }
+}
+
+/**
+ * @brief Callback function for MQTT client
+ */
+void callback(String topic, byte *payload, unsigned int length)
+{
+    // Reset board when received "reset" message
+    if (topic == (DEFAULT_TOPIC "reset"))
+    {
+        if ((char)payload[0] == '1')
+            ESP.restart();
     }
 }
 

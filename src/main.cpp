@@ -56,9 +56,9 @@ void setup()
     reconnect();
 
     ina226.begin(INA226_ADDRESS);
-    ina226.configure(INA226_AVERAGES_512, INA226_BUS_CONV_TIME_1100US,
-                     INA226_SHUNT_CONV_TIME_1100US, INA226_MODE_SHUNT_BUS_CONT);
-    ina226.calibrate(0.0005, 40);
+    ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
+                     INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
+    ina226.calibrate(0.00075, 40);
 }
 
 void loop()
@@ -90,8 +90,6 @@ void read_ina226_values(void)
 
         inverter_V = ina226.readBusVoltage();
         inverter_A = ina226.readShuntCurrent();
-        // inverter_A = inverter_A * 0.885 - 0.00391;
-
         inverter_P = ina226.readBusPower();
 
         uint32_t time_now = millis();

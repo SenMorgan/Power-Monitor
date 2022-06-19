@@ -34,6 +34,8 @@ void setup()
 
     Wire.begin(SDA_PIN, SCL_PIN);
 
+    pinMode(INA226_ALERT_PIN, INPUT_PULLUP);
+
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWD);
     WiFi.hostname(HOSTNAME);
@@ -59,6 +61,7 @@ void setup()
     ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
                      INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
     ina226.calibrate(0.00075, 40);
+    ina226.enableConversionReadyAlert();
 }
 
 void loop()
@@ -84,8 +87,11 @@ void read_ina226_values(void)
 {
     static uint32_t last_meas_timestamp;
     static int eeprom_cnt;
-    if (millis() - last_meas_timestamp > READ_STEP_MS)
+
+    if (!digitalRead(INA226_ALERT_PIN))
     {
+        // Erase alert
+        ina226.isAlert();
         last_meas_timestamp = millis();
 
         inverter_V = ina226.readBusVoltage();

@@ -22,17 +22,16 @@
 #define MQTT_AVAILABILITY_MESSAGE "online"
 #define MQTT_UPTIME_TOPIC         DEFAULT_TOPIC "uptime"
 
-// Delay between INA226 readings
-#define READ_STEP_MS       1000
 // Publishing data period
 #define PUBLISH_DELAY_MS   1000
 // Reconnecting to MQTT server delay
 #define RECONNECT_DELAY_MS 5000
 
 // IO pins
-#define SDA_PIN    0
-#define SCL_PIN    2
+#define SDA_PIN          0
+#define SCL_PIN          2
+#define INA226_ALERT_PIN 3
 // WARN: ESP-01 built-in LED can't be used if I2C is enabled on pins 0 and 2
-#define STATUS_LED 2
+#define STATUS_LED       2
 
 #endif // _DEF_H_

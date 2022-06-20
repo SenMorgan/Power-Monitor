@@ -19,6 +19,7 @@ void read_ina226_values(void);
 void callback(String topic, byte *payload, unsigned int length);
 void reconnect(void);
 void publish_data(void);
+void led_fade(uint8_t led_pin, int brightness, uint32_t period);
 
 // EEPROM variables
 float inverter_wh;
@@ -35,6 +36,8 @@ void setup()
     Wire.begin(SDA_PIN, SCL_PIN);
 
     pinMode(INA226_ALERT_PIN, INPUT_PULLUP);
+    pinMode(STATUS_LED, OUTPUT);
+    digitalWrite(STATUS_LED, 1);
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWD);
@@ -45,12 +48,10 @@ void setup()
     ArduinoOTA.setPassword(OTA_PASSWORD);
     ArduinoOTA.begin();
     // Blink with built-in LED to indicate OTA update is in progress
-    ArduinoOTA.onStart([]()
-                       { pinMode(STATUS_LED, OUTPUT); });
     ArduinoOTA.onProgress([](uint16_t progress, uint16_t total)
-                          { digitalWrite(STATUS_LED, !digitalRead(STATUS_LED)); });
+                          { analogWrite(STATUS_LED, map(progress, 0, total, 0, 255)); });
     ArduinoOTA.onEnd([]()
-                     { Wire.begin(SDA_PIN, SCL_PIN); });
+                     { analogWrite(STATUS_LED, 0); });
 
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
@@ -62,6 +63,8 @@ void setup()
                      INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
     ina226.calibrate(0.00075, 40);
     ina226.enableConversionReadyAlert();
+
+    led_fade(STATUS_LED, 255, 2);
 }
 
 void loop()
@@ -159,6 +162,7 @@ void publish_data(void)
     if (millis() - last_pub_timestamp > PUBLISH_DELAY_MS)
     {
         last_pub_timestamp = millis();
+        analogWrite(STATUS_LED, 10);
 
         mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
         sprintf(buff, "%ld", millis() / 1000);
@@ -171,5 +175,16 @@ void publish_data(void)
         mqttClient.publish(DEFAULT_TOPIC "watt", buff);
         sprintf(buff, "%f", inverter_wh);
         mqttClient.publish(DEFAULT_TOPIC "wh", buff);
+
+        analogWrite(STATUS_LED, 0);
+    }
+}
+
+void led_fade(uint8_t led_pin, int brightness, uint32_t period)
+{
+    for (; brightness >= 0; brightness--)
+    {
+        analogWrite(led_pin, brightness);
+        delay(period);
     }
 }

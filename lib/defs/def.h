@@ -31,7 +31,9 @@
 #define SDA_PIN          0
 #define SCL_PIN          2
 #define INA226_ALERT_PIN 3
-// WARN: ESP-01 built-in LED can't be used if I2C is enabled on pins 0 and 2
-#define STATUS_LED       2
+/** WARN: ESP-01 built-in LED can't be used if I2C is enabled on GPIO 2
+ * so we are using GPIO 1 (TX pin) and external LED
+ */
+#define STATUS_LED 1
 
 #endif // _DEF_H_

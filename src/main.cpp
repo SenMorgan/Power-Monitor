@@ -31,7 +31,7 @@ float inverter_V, inverter_A, inverter_P;
 void setup()
 {
     EEPROM.begin(4);
-    // EEPROM.put(0, energy);   // erase EEPROM
+    // EEPROM.put(0, inverter_wh); // erase EEPROM
     EEPROM.get(0, inverter_wh);
 
     Wire.begin(SDA_PIN, SCL_PIN);

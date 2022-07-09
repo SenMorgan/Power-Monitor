@@ -11,7 +11,7 @@
 #define _DEF_H_
 
 // MQTT definitions
-#define DEFAULT_TOPIC             "/inverter/"
+#define DEFAULT_TOPIC             "/power-monitor/"
 #define MQTT_WILL_TOPIC           DEFAULT_TOPIC "availability"
 #define MQTT_QOS                  1
 #define MQTT_RETAIN               0

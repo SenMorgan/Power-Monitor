@@ -24,10 +24,10 @@ uint8_t reconnect_and_publish();
 void go_to_light_sleep();
 
 // EEPROM variables
-float inverter_wh;
+float calculated_wh;
 
 // Global variables
-float inverter_V, inverter_A, inverter_P;
+float measured_V, measured_A, measured_P;
 
 uint8_t sleep_enabled = 1;
 uint32_t reconn_time;
@@ -35,8 +35,8 @@ uint32_t reconn_time;
 void setup()
 {
     EEPROM.begin(4);
-    // EEPROM.put(0, inverter_wh); // erase EEPROM
-    EEPROM.get(0, inverter_wh);
+    // EEPROM.put(0, calculated_wh); // erase EEPROM
+    EEPROM.get(0, calculated_wh);
 
     Wire.begin(SDA_PIN, SCL_PIN);
 
@@ -165,15 +165,15 @@ uint8_t read_ina226_values(void)
         ina226.isAlert();
         last_meas_timestamp = millis();
 
-        inverter_V = ina226.readBusVoltage();
-        inverter_A = ina226.readShuntCurrent();
-        inverter_P = ina226.readBusPower();
+        measured_V = ina226.readBusVoltage();
+        measured_A = ina226.readShuntCurrent();
+        measured_P = ina226.readBusPower();
 
         uint32_t time_now = millis();
 
         if (last_meas_timestamp > 0)
         {
-            inverter_wh += float(((time_now - last_meas_timestamp) * inverter_P) / 3600000.0f);
+            calculated_wh += float(((time_now - last_meas_timestamp) * measured_P) / 3600000.0f);
         }
         last_meas_timestamp = time_now;
 
@@ -182,7 +182,7 @@ uint8_t read_ina226_values(void)
         if (eeprom_cnt > 10)
         {
             eeprom_cnt = 0;
-            EEPROM.put(0, inverter_wh);
+            EEPROM.put(0, calculated_wh);
             EEPROM.commit();
         }
 
@@ -233,13 +233,13 @@ void publish_data(void)
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
     sprintf(buff, "%ld", millis() / 1000);
     mqttClient.publish(MQTT_UPTIME_TOPIC, buff);
-    sprintf(buff, "%0.3f", inverter_V);
+    sprintf(buff, "%0.3f", measured_V);
     mqttClient.publish(DEFAULT_TOPIC "volt", buff);
-    sprintf(buff, "%0.3f", inverter_A);
+    sprintf(buff, "%0.3f", measured_A);
     mqttClient.publish(DEFAULT_TOPIC "amp", buff);
-    sprintf(buff, "%0.3f", inverter_P);
+    sprintf(buff, "%0.3f", measured_P);
     mqttClient.publish(DEFAULT_TOPIC "watt", buff);
-    sprintf(buff, "%f", inverter_wh);
+    sprintf(buff, "%f", calculated_wh);
     mqttClient.publish(DEFAULT_TOPIC "wh", buff);
     // sprintf(buff, "%ld", millis() / 1000);
     sprintf(buff, "%d", reconn_time);

@@ -22,10 +22,14 @@
 #define MQTT_AVAILABILITY_MESSAGE "online"
 #define MQTT_UPTIME_TOPIC         DEFAULT_TOPIC "uptime"
 
-// Publishing data period
-#define PUBLISH_DELAY_MS   1000
 // Reconnecting to MQTT server delay
-#define RECONNECT_DELAY_MS 5000
+#define RECONNECT_DELAY_MS      1000
+/* How often will data been published to broker and WiFi will be reconnected.
+The period of 1 reading is ina226_averages_t * ina226_busConvTime_t
+or ina226_averages_t * ina226_busConvTime_t (the lowest one)
+When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is about 1 second
+*/
+#define SEND_DATA_AFTER_N_READS 30
 
 // IO pins
 #define SDA_PIN          0
@@ -34,6 +38,6 @@
 /** WARN: ESP-01 built-in LED can't be used if I2C is enabled on GPIO 2
  * so we are using GPIO 1 (TX pin) and external LED
  */
-#define STATUS_LED 1
+#define STATUS_LED       1
 
 #endif // _DEF_H_

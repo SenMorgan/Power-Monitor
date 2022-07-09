@@ -1,7 +1,5 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <INA226.h>
@@ -15,18 +13,24 @@ PubSubClient mqttClient(espClient);
 
 INA226 ina226(Wire);
 
+// Forward declarations
 uint8_t read_ina226_values(void);
 void callback(String topic, byte *payload, unsigned int length);
 void reconnect(void);
 void publish_data(void);
 void led_fade_on(uint8_t led_pin, int brightness, uint32_t period);
 void led_fade_off(uint8_t led_pin, int brightness, uint32_t period);
+uint8_t reconnect_and_publish();
+void go_to_light_sleep();
 
 // EEPROM variables
 float inverter_wh;
 
 // Global variables
 float inverter_V, inverter_A, inverter_P;
+
+uint8_t sleep_enabled = 1;
+uint32_t reconn_time;
 
 void setup()
 {
@@ -40,24 +44,10 @@ void setup()
     pinMode(STATUS_LED, OUTPUT);
     digitalWrite(STATUS_LED, 1);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWD);
-    WiFi.hostname(HOSTNAME);
-
-    // Arduino OTA initializing
-    ArduinoOTA.setHostname(OTA_HOSTNAME);
-    ArduinoOTA.setPassword(OTA_PASSWORD);
-    ArduinoOTA.begin();
-    // Blink with built-in LED to indicate OTA update is in progress
-    ArduinoOTA.onProgress([](uint16_t progress, uint16_t total)
-                          { analogWrite(STATUS_LED, map(progress, 0, total, 0, 255)); });
-    ArduinoOTA.onEnd([]()
-                     { analogWrite(STATUS_LED, 0); });
-
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
     mqttClient.setCallback(callback);
-    reconnect();
+    // reconnect();
 
     ina226.begin(INA226_ADDRESS);
     ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
@@ -70,32 +60,98 @@ void setup()
 
 void loop()
 {
-    ArduinoOTA.handle();
+    static uint8_t ina226_read_counter = 0;
+
     if (read_ina226_values())
     {
-        // If WiFi is connected
-        if (WiFi.status() == WL_CONNECTED)
-        {
-            // If connected to the MQTT server, publish the data
+        ina226_read_counter++;
+    }
+
+    if (ina226_read_counter >= SEND_DATA_AFTER_N_READS)
+    {
+        // If finished publishing data, reset counter
+        if (reconnect_and_publish())
+            ina226_read_counter = 0;
+    }
+
+    if (sleep_enabled)
+        go_to_light_sleep();
+
+    yield();
+}
+
+uint8_t reconnect_and_publish()
+{
+    static uint8_t stage;
+    static uint32_t timestamp_on_begin;
+
+    switch (stage)
+    {
+        case 0:
+            timestamp_on_begin = millis();
+            // Setup WiFi connection
+            WiFi.mode(WIFI_STA);
+            WiFi.begin(WIFI_SSID, WIFI_PASSWD);
+            WiFi.hostname(HOSTNAME);
+            WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
+            stage++;
+            sleep_enabled = 0;
+            led_fade_on(STATUS_LED, 40, 3);
+            break;
+        case 1:
+            // Wait for WiFi connection
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                stage++;
+            }
+            else
+            {
+                // Delay for Light Sleep to be enabled
+                delay(350);
+            }
+            break;
+        case 2:
             if (mqttClient.loop())
             {
-                publish_data();
+                stage++;
             }
-            // If we are not connected to the MQTT server, try to reconnect every RECONNECT_DELAY_MS
+            // If we are not connected to the MQTT broker, try to reconnect every RECONNECT_DELAY_MS
             else
             {
                 reconnect();
+                // Delay for Light Sleep to be enabled
+                delay(350);
             }
-        }
-        // Fade the Status LED to indicate WiFi is not connected
-        else
-        {
-            led_fade_on(STATUS_LED, 40, 3);
+            break;
+        case 3:
+            reconn_time = millis() - timestamp_on_begin;
+            // Publish data
+            publish_data();
+            stage++;
+            break;
+        case 4:
+            // Wait the data to be published
+            espClient.flush();
+            // Go back to the powersave mode
+            WiFi.mode(WIFI_OFF);
             led_fade_off(STATUS_LED, 40, 3);
-        }
+            stage = 0;
+            sleep_enabled = 1;
+            return 1;
+            break;
     }
 
-    yield();
+    return 0;
+}
+
+void go_to_light_sleep()
+{
+    wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
+    // only LOLEVEL or HILEVEL interrupts work, no edge, that's an SDK or CPU limitation
+    gpio_pin_wakeup_enable(GPIO_ID_PIN(INA226_ALERT_PIN), GPIO_PIN_INTR_LOLEVEL);
+    wifi_fpm_open();
+    wifi_fpm_do_sleep(0xFFFFFFF); // only 0xFFFFFFF, any other value and it won't disconnect the RTC timer
+    delay(10);                    // it goes to sleep during this delay() and waits for an interrupt
 }
 
 uint8_t read_ina226_values(void)
@@ -174,7 +230,7 @@ void publish_data(void)
 {
     static char buff[20];
 
-    analogWrite(STATUS_LED, 10);
+    // analogWrite(STATUS_LED, 10);
 
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
     sprintf(buff, "%ld", millis() / 1000);
@@ -187,10 +243,11 @@ void publish_data(void)
     mqttClient.publish(DEFAULT_TOPIC "watt", buff);
     sprintf(buff, "%f", inverter_wh);
     mqttClient.publish(DEFAULT_TOPIC "wh", buff);
-    sprintf(buff, "%ld", millis()/1000);
+    // sprintf(buff, "%ld", millis() / 1000);
+    sprintf(buff, "%d", reconn_time);
     mqttClient.publish(DEFAULT_TOPIC "timestamp", buff);
 
-    analogWrite(STATUS_LED, 0);
+    // analogWrite(STATUS_LED, 0);
 }
 
 void led_fade_on(uint8_t led_pin, int brightness, uint32_t period)

@@ -89,6 +89,7 @@ uint8_t reconnect_and_publish()
     {
         case 0:
             timestamp_on_begin = millis();
+            analogWrite(STATUS_LED, 10);
             // Setup WiFi connection
             WiFi.mode(WIFI_STA);
             WiFi.begin(WIFI_SSID, WIFI_PASSWD);
@@ -96,7 +97,6 @@ uint8_t reconnect_and_publish()
             WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
             stage++;
             sleep_enabled = 0;
-            led_fade_on(STATUS_LED, 40, 3);
             break;
         case 1:
             // Wait for WiFi connection
@@ -134,9 +134,9 @@ uint8_t reconnect_and_publish()
             espClient.flush();
             // Go back to the powersave mode
             WiFi.mode(WIFI_OFF);
-            led_fade_off(STATUS_LED, 40, 3);
             stage = 0;
             sleep_enabled = 1;
+            analogWrite(STATUS_LED, 0);
             return 1;
             break;
     }
@@ -230,8 +230,6 @@ void publish_data(void)
 {
     static char buff[20];
 
-    // analogWrite(STATUS_LED, 10);
-
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
     sprintf(buff, "%ld", millis() / 1000);
     mqttClient.publish(MQTT_UPTIME_TOPIC, buff);
@@ -245,9 +243,7 @@ void publish_data(void)
     mqttClient.publish(DEFAULT_TOPIC "wh", buff);
     // sprintf(buff, "%ld", millis() / 1000);
     sprintf(buff, "%d", reconn_time);
-    mqttClient.publish(DEFAULT_TOPIC "timestamp", buff);
-
-    // analogWrite(STATUS_LED, 0);
+    mqttClient.publish(DEFAULT_TOPIC "uptime", buff);
 }
 
 void led_fade_on(uint8_t led_pin, int brightness, uint32_t period)

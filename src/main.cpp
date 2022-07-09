@@ -187,6 +187,8 @@ void publish_data(void)
     mqttClient.publish(DEFAULT_TOPIC "watt", buff);
     sprintf(buff, "%f", inverter_wh);
     mqttClient.publish(DEFAULT_TOPIC "wh", buff);
+    sprintf(buff, "%ld", millis()/1000);
+    mqttClient.publish(DEFAULT_TOPIC "timestamp", buff);
 
     analogWrite(STATUS_LED, 0);
 }

@@ -16,11 +16,18 @@
 #define MQTT_QOS                  1
 #define MQTT_RETAIN               0
 #define MQTT_WILL_MESSAGE         DEFAULT_TOPIC "offline"
-#define MQTT_SUBSCRIBE_TOPIC      DEFAULT_TOPIC "#"
-#define MQTT_PUBLISH_TOPIC        DEFAULT_TOPIC "state"
+#define MQTT_CMD_TOPIC_RESET      DEFAULT_TOPIC "set/reset"
+#define MQTT_CMD_TOPIC_SLEEP      DEFAULT_TOPIC "set/sleep"
+#define MQTT_STATE_TOPIC_SLEEP    DEFAULT_TOPIC "state/sleep"
+#define MQTT_STATE_TOPIC_VOLT     DEFAULT_TOPIC "volt"
+#define MQTT_STATE_TOPIC_AMP      DEFAULT_TOPIC "amp"
+#define MQTT_STATE_TOPIC_WATT     DEFAULT_TOPIC "watt"
+#define MQTT_STATE_TOPIC_WH       DEFAULT_TOPIC "wh"
+#define MQTT_STATE_TOPIC_UPTIME   DEFAULT_TOPIC "uptime"
 #define MQTT_AVAILABILITY_TOPIC   DEFAULT_TOPIC "availability"
 #define MQTT_AVAILABILITY_MESSAGE "online"
-#define MQTT_UPTIME_TOPIC         DEFAULT_TOPIC "uptime"
+#define MQTT_CMD_ON               "1"
+#define MQTT_CMD_OFF              "0"
 
 // Reconnecting to MQTT server delay
 #define RECONNECT_DELAY_MS      1000

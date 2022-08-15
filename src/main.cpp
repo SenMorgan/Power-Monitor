@@ -44,6 +44,8 @@ void setup()
     pinMode(STATUS_LED, OUTPUT);
     digitalWrite(STATUS_LED, 1);
 
+    WiFi.mode(WIFI_OFF);
+
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
     mqttClient.setCallback(callback);
@@ -197,11 +199,23 @@ uint8_t read_ina226_values(void)
  */
 void callback(String topic, byte *payload, unsigned int length)
 {
+    String msgString = "";
+    for (uint16_t i = 0; i < length; i++)
+        msgString += (char)payload[i];
+
     // Reset board when received "reset" message
-    if (topic == (DEFAULT_TOPIC "reset"))
+    if (topic == (MQTT_CMD_TOPIC_RESET))
     {
-        if ((char)payload[0] == '1')
+        if (msgString == MQTT_CMD_ON)
             ESP.restart();
+    }
+    // Enable/disable WiFi sleep mode
+    else if (topic == (MQTT_CMD_TOPIC_SLEEP))
+    {
+        if (msgString == MQTT_CMD_ON)
+            sleep_enabled = 1;
+        else if (msgString == MQTT_CMD_OFF)
+            sleep_enabled = 0;
     }
 }
 
@@ -217,7 +231,8 @@ void reconnect(void)
         if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
                                MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
         {
-            mqttClient.subscribe(DEFAULT_TOPIC "#");
+            mqttClient.subscribe(MQTT_CMD_TOPIC_RESET);
+            mqttClient.subscribe(MQTT_CMD_TOPIC_SLEEP);
         }
         reconnectTimer = millis();
     }
@@ -231,17 +246,17 @@ void publish_data(void)
     static char buff[20];
 
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
-    sprintf(buff, "%ld", millis() / 1000);
-    mqttClient.publish(MQTT_UPTIME_TOPIC, buff);
     sprintf(buff, "%0.3f", measured_V);
-    mqttClient.publish(DEFAULT_TOPIC "volt", buff);
+    mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
     sprintf(buff, "%0.3f", measured_A);
-    mqttClient.publish(DEFAULT_TOPIC "amp", buff);
+    mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
     sprintf(buff, "%0.3f", measured_P);
-    mqttClient.publish(DEFAULT_TOPIC "watt", buff);
+    mqttClient.publish(MQTT_STATE_TOPIC_WATT, buff);
     sprintf(buff, "%f", calculated_wh);
-    mqttClient.publish(DEFAULT_TOPIC "wh", buff);
-    // sprintf(buff, "%ld", millis() / 1000);
+    mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
+    sprintf(buff, "%ld", millis() / 1000);
+    mqttClient.publish(MQTT_STATE_TOPIC_UPTIME, buff);
+    // TODO: remove after testing
     sprintf(buff, "%d", reconn_time);
     mqttClient.publish(DEFAULT_TOPIC "uptime", buff);
 }

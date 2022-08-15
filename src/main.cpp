@@ -108,6 +108,10 @@ uint8_t reconnect_and_publish()
             }
             else
             {
+                if (millis() - timestamp_on_begin > MAX_WIFI_RECONNECT_TIME_MS)
+                {
+                    stage = 4;
+                }
                 // Delay for Light Sleep to be enabled
                 delay(350);
             }
@@ -120,7 +124,14 @@ uint8_t reconnect_and_publish()
             // If we are not connected to the MQTT broker, try to reconnect every RECONNECT_DELAY_MS
             else
             {
-                reconnect();
+                if (millis() - timestamp_on_begin > MAX_MQTT_RECONNECT_TIME_MS)
+                {
+                    stage = 4;
+                }
+                else
+                {
+                    reconnect();
+                }
                 // Delay for Light Sleep to be enabled
                 delay(350);
             }

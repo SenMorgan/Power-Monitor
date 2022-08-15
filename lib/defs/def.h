@@ -38,6 +38,9 @@ When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is abo
 */
 #define SEND_DATA_AFTER_N_READS 30
 
+#define MAX_WIFI_RECONNECT_TIME_MS 10000
+#define MAX_MQTT_RECONNECT_TIME_MS 5000
+
 // IO pins
 #define SDA_PIN          0
 #define SCL_PIN          2

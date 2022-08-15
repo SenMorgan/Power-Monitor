@@ -27,7 +27,7 @@ void go_to_light_sleep();
 float calculated_wh;
 // Global variables
 float measured_V, measured_A, measured_P;
-uint8_t light_sleep_enabled = 1, wifi_sleep_enabled = 1;
+uint8_t light_sleep_enabled = 1, wifi_sleep_enabled = 1, light_enabled;
 uint32_t reconn_time, timestamp_last_published;
 
 void setup()
@@ -162,6 +162,7 @@ uint8_t reconnect_and_publish()
             break;
         case 4:
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             delay(DELAY_AFTER_PUBLISH_MS);
             // Wait the data to be published
             espClient.flush();
@@ -240,6 +241,16 @@ void callback(String topic, byte *payload, unsigned int length)
         if (msgString == MQTT_CMD_ON)
             ESP.restart();
     }
+    else if (topic == (MQTT_CMD_TOPIC_WH_RESET))
+    {
+        if (msgString == MQTT_CMD_ON)
+        {
+        mqttClient.publish(MQTT_CMD_TOPIC_WH_RESET, MQTT_CMD_OFF, true);
+        calculated_wh = 0;
+        EEPROM.put(0, calculated_wh);
+        EEPROM.commit();
+    }
+    }
     // Enable/disable WiFi sleep mode
     else if (topic == (MQTT_CMD_TOPIC_SLEEP))
     {
@@ -252,6 +263,21 @@ void callback(String topic, byte *payload, unsigned int length)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
             wifi_sleep_enabled = 0;
+        }
+    }
+    else if (topic == (MQTT_CMD_TOPIC_LIGHT))
+    {
+        if (msgString == MQTT_CMD_ON && !light_enabled)
+        {
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
+            analogWrite(STATUS_LED, 255);
+            light_enabled = 1;
+        }
+        else if (msgString == MQTT_CMD_OFF && light_enabled)
+        {
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+            analogWrite(STATUS_LED, 0);
+            light_enabled = 0;
         }
     }
 }
@@ -268,8 +294,7 @@ void reconnect(void)
         if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
                                MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
         {
-            mqttClient.subscribe(MQTT_CMD_TOPIC_RESET);
-            mqttClient.subscribe(MQTT_CMD_TOPIC_SLEEP);
+            mqttClient.subscribe(MQTT_SUBSCRIBE_TOPIC);
         }
         reconnectTimer = millis();
     }

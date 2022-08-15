@@ -16,8 +16,12 @@
 #define MQTT_QOS                  1
 #define MQTT_RETAIN               0
 #define MQTT_WILL_MESSAGE         DEFAULT_TOPIC "offline"
+#define MQTT_SUBSCRIBE_TOPIC      DEFAULT_TOPIC "set/#"
 #define MQTT_CMD_TOPIC_RESET      DEFAULT_TOPIC "set/reset"
 #define MQTT_CMD_TOPIC_SLEEP      DEFAULT_TOPIC "set/sleep"
+#define MQTT_CMD_TOPIC_WH_RESET   DEFAULT_TOPIC "set/wh-reset"
+#define MQTT_CMD_TOPIC_LIGHT      DEFAULT_TOPIC "set/light"
+#define MQTT_STATE_TOPIC_LIGHT    DEFAULT_TOPIC "state/light"
 #define MQTT_STATE_TOPIC_SLEEP    DEFAULT_TOPIC "state/sleep"
 #define MQTT_STATE_TOPIC_VOLT     DEFAULT_TOPIC "state/volt"
 #define MQTT_STATE_TOPIC_AMP      DEFAULT_TOPIC "state/amp"

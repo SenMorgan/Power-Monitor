@@ -19,27 +19,37 @@
 #define MQTT_CMD_TOPIC_RESET      DEFAULT_TOPIC "set/reset"
 #define MQTT_CMD_TOPIC_SLEEP      DEFAULT_TOPIC "set/sleep"
 #define MQTT_STATE_TOPIC_SLEEP    DEFAULT_TOPIC "state/sleep"
-#define MQTT_STATE_TOPIC_VOLT     DEFAULT_TOPIC "volt"
-#define MQTT_STATE_TOPIC_AMP      DEFAULT_TOPIC "amp"
-#define MQTT_STATE_TOPIC_WATT     DEFAULT_TOPIC "watt"
-#define MQTT_STATE_TOPIC_WH       DEFAULT_TOPIC "wh"
-#define MQTT_STATE_TOPIC_UPTIME   DEFAULT_TOPIC "uptime"
+#define MQTT_STATE_TOPIC_VOLT     DEFAULT_TOPIC "state/volt"
+#define MQTT_STATE_TOPIC_AMP      DEFAULT_TOPIC "state/amp"
+#define MQTT_STATE_TOPIC_WATT     DEFAULT_TOPIC "state/watt"
+#define MQTT_STATE_TOPIC_WH       DEFAULT_TOPIC "state/wh"
+#define MQTT_STATE_TOPIC_UPTIME   DEFAULT_TOPIC "state/uptime"
 #define MQTT_AVAILABILITY_TOPIC   DEFAULT_TOPIC "availability"
 #define MQTT_AVAILABILITY_MESSAGE "online"
 #define MQTT_CMD_ON               "1"
 #define MQTT_CMD_OFF              "0"
 
 // Reconnecting to MQTT server delay
-#define RECONNECT_DELAY_MS      1000
+#define RECONNECT_DELAY_MS       1000
 /* How often will data been published to broker and WiFi will be reconnected.
 The period of 1 reading is ina226_averages_t * ina226_busConvTime_t
 or ina226_averages_t * ina226_busConvTime_t (the lowest one)
 When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is about 1 second
 */
-#define SEND_DATA_AFTER_N_READS 30
+#define SEND_DATA_AFTER_N_READS  30
+// Interval between publishing data in non-sleep mode
+#define PUBLISH_INTERVAL_FAST_MS 1000
+// Interval between publishing data in sleep mode
+#define PUBLISH_INTERVAL_SLOW_MS 60000
 
 #define MAX_WIFI_RECONNECT_TIME_MS 10000
 #define MAX_MQTT_RECONNECT_TIME_MS 5000
+// Some delay to process MQTT messages before going to sleep
+#define SLEEP_AFTER_MS             2000
+// Time to wait before going to sleep if we loose connection to the broker
+#define SLEEP_AFTER_DISCONNECT_MS  120000
+// Some delay to process MQTT messages before going to sleep
+#define DELAY_AFTER_PUBLISH_MS     500
 
 // IO pins
 #define SDA_PIN          0

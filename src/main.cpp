@@ -25,12 +25,10 @@ void go_to_light_sleep();
 
 // EEPROM variables
 float calculated_wh;
-
 // Global variables
 float measured_V, measured_A, measured_P;
-
-uint8_t sleep_enabled = 1;
-uint32_t reconn_time;
+uint8_t light_sleep_enabled = 1, wifi_sleep_enabled = 1;
+uint32_t reconn_time, timestamp_last_published;
 
 void setup()
 {
@@ -62,21 +60,18 @@ void setup()
 
 void loop()
 {
-    static uint8_t ina226_read_counter = 0;
+    read_ina226_values();
 
-    if (read_ina226_values())
+    if (millis() - timestamp_last_published > PUBLISH_INTERVAL_SLOW_MS ||
+        !wifi_sleep_enabled)
     {
-        ina226_read_counter++;
-    }
-
-    if (ina226_read_counter >= SEND_DATA_AFTER_N_READS)
-    {
-        // If finished publishing data, reset counter
         if (reconnect_and_publish())
-            ina226_read_counter = 0;
+        {
+            timestamp_last_published = millis();
+        }
     }
 
-    if (sleep_enabled)
+    if (light_sleep_enabled && wifi_sleep_enabled)
         go_to_light_sleep();
 
     yield();
@@ -85,7 +80,7 @@ void loop()
 uint8_t reconnect_and_publish()
 {
     static uint8_t stage;
-    static uint32_t timestamp_on_begin;
+    static uint32_t timestamp_on_begin, timestamp_after_connection, timestamp_last_published, disconnected_time_stamp;
 
     switch (stage)
     {
@@ -98,7 +93,7 @@ uint8_t reconnect_and_publish()
             WiFi.hostname(HOSTNAME);
             WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
             stage++;
-            sleep_enabled = 0;
+            light_sleep_enabled = 0;
             break;
         case 1:
             // Wait for WiFi connection
@@ -119,6 +114,8 @@ uint8_t reconnect_and_publish()
         case 2:
             if (mqttClient.loop())
             {
+                reconn_time = millis() - timestamp_on_begin;
+                timestamp_after_connection = millis();
                 stage++;
             }
             // If we are not connected to the MQTT broker, try to reconnect every RECONNECT_DELAY_MS
@@ -137,18 +134,41 @@ uint8_t reconnect_and_publish()
             }
             break;
         case 3:
-            reconn_time = millis() - timestamp_on_begin;
-            // Publish data
-            publish_data();
-            stage++;
+            if (wifi_sleep_enabled && millis() - timestamp_after_connection > SLEEP_AFTER_MS)
+            {
+                stage++;
+            }
+            else
+            {
+                uint8_t connected_to_broker = mqttClient.loop();
+                if (millis() - timestamp_last_published > PUBLISH_INTERVAL_FAST_MS)
+                {
+                    timestamp_last_published = millis();
+                    // Publish data
+                    publish_data();
+                }
+                // Save timestamp when loose connection to the broker
+                if (!connected_to_broker && !disconnected_time_stamp)
+                    disconnected_time_stamp = millis();
+                else if (connected_to_broker && disconnected_time_stamp)
+                    disconnected_time_stamp = 0;
+
+                // Fall asleep after some time if can't connect to the broker
+                if (disconnected_time_stamp && millis() - disconnected_time_stamp > SLEEP_AFTER_DISCONNECT_MS)
+                {
+                    stage++;
+                }
+            }
             break;
         case 4:
+            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            delay(DELAY_AFTER_PUBLISH_MS);
             // Wait the data to be published
             espClient.flush();
             // Go back to the powersave mode
             WiFi.mode(WIFI_OFF);
             stage = 0;
-            sleep_enabled = 1;
+            light_sleep_enabled = 1;
             analogWrite(STATUS_LED, 0);
             return 1;
             break;
@@ -223,10 +243,16 @@ void callback(String topic, byte *payload, unsigned int length)
     // Enable/disable WiFi sleep mode
     else if (topic == (MQTT_CMD_TOPIC_SLEEP))
     {
-        if (msgString == MQTT_CMD_ON)
-            sleep_enabled = 1;
-        else if (msgString == MQTT_CMD_OFF)
-            sleep_enabled = 0;
+        if (msgString == MQTT_CMD_ON && !wifi_sleep_enabled)
+        {
+            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            wifi_sleep_enabled = 1;
+        }
+        else if (msgString == MQTT_CMD_OFF && wifi_sleep_enabled)
+        {
+            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
+            wifi_sleep_enabled = 0;
+        }
     }
 }
 

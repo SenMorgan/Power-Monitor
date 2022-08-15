@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Wire.h>
@@ -43,6 +44,16 @@ void setup()
     digitalWrite(STATUS_LED, 1);
 
     WiFi.mode(WIFI_OFF);
+    WiFi.hostname(HOSTNAME);
+
+    // Arduino OTA initializing
+    ArduinoOTA.setHostname(OTA_HOSTNAME);
+    ArduinoOTA.setPassword(OTA_PASSWORD);
+    ArduinoOTA.begin();
+    ArduinoOTA.onStart([]()
+                       {
+                        wifi_sleep_enabled = 0;
+                        digitalWrite(STATUS_LED, 1); });
 
     // MQTT initializing
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
@@ -63,6 +74,7 @@ void loop()
     read_ina226_values();
 
     if (millis() - timestamp_last_published > PUBLISH_INTERVAL_SLOW_MS ||
+        !timestamp_last_published ||
         !wifi_sleep_enabled)
     {
         if (reconnect_and_publish())
@@ -90,7 +102,6 @@ uint8_t reconnect_and_publish()
             // Setup WiFi connection
             WiFi.mode(WIFI_STA);
             WiFi.begin(WIFI_SSID, WIFI_PASSWD);
-            WiFi.hostname(HOSTNAME);
             WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
             stage++;
             light_sleep_enabled = 0;
@@ -138,9 +149,12 @@ uint8_t reconnect_and_publish()
             {
                 stage++;
             }
+            // Main second loop when sleep mode disabled
             else
             {
+                ArduinoOTA.handle();
                 uint8_t connected_to_broker = mqttClient.loop();
+
                 if (millis() - timestamp_last_published > PUBLISH_INTERVAL_FAST_MS)
                 {
                     timestamp_last_published = millis();
@@ -162,6 +176,7 @@ uint8_t reconnect_and_publish()
             break;
         case 4:
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             delay(DELAY_AFTER_PUBLISH_MS);
             // Wait the data to be published
@@ -245,11 +260,11 @@ void callback(String topic, byte *payload, unsigned int length)
     {
         if (msgString == MQTT_CMD_ON)
         {
-        mqttClient.publish(MQTT_CMD_TOPIC_WH_RESET, MQTT_CMD_OFF, true);
-        calculated_wh = 0;
-        EEPROM.put(0, calculated_wh);
-        EEPROM.commit();
-    }
+            mqttClient.publish(MQTT_CMD_TOPIC_WH_RESET, MQTT_CMD_OFF, true);
+            calculated_wh = 0;
+            EEPROM.put(0, calculated_wh);
+            EEPROM.commit();
+        }
     }
     // Enable/disable WiFi sleep mode
     else if (topic == (MQTT_CMD_TOPIC_SLEEP))
@@ -318,9 +333,6 @@ void publish_data(void)
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
     sprintf(buff, "%ld", millis() / 1000);
     mqttClient.publish(MQTT_STATE_TOPIC_UPTIME, buff);
-    // TODO: remove after testing
-    sprintf(buff, "%d", reconn_time);
-    mqttClient.publish(DEFAULT_TOPIC "uptime", buff);
 }
 
 void led_fade_on(uint8_t led_pin, int brightness, uint32_t period)

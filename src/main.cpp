@@ -131,16 +131,10 @@ void callback(String topic, byte *payload, unsigned int length)
  */
 void reconnect(void)
 {
-    static uint32_t reconnectTimer;
-
-    if (!reconnectTimer || millis() - reconnectTimer >= RECONNECT_DELAY_MS)
+    if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
+                           MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
     {
-        if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
-                               MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
-        {
-            mqttClient.subscribe(MQTT_SUBSCRIBE_TOPIC);
-        }
-        reconnectTimer = millis();
+        mqttClient.subscribe(MQTT_SUBSCRIBE_TOPIC);
     }
 }
 
@@ -245,7 +239,7 @@ void state_machine(uint8_t sleep_mode)
             {
                 stage = WIFI_CONNECTED;
             }
-            else if (millis() - timestamp_on_wifi_begin > WIFI_CONNECTING_TIMEOUT_MS)
+            else if (millis() - timestamp_on_wifi_begin > MAX_WIFI_RECONN_TIME_MS)
             {
                 WiFi.mode(WIFI_OFF);
                 digitalWrite(STATUS_LED, 0);
@@ -369,6 +363,7 @@ void setup()
     mqttClient.setCallback(callback);
 
     ina226.begin(INA226_ADDRESS);
+    // When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is about 1 second
     ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
                      INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
     ina226.calibrate(0.00075, 40);

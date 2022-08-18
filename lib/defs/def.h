@@ -49,11 +49,16 @@ When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is abo
 #define MAX_WIFI_RECONNECT_TIME_MS 10000
 #define MAX_MQTT_RECONNECT_TIME_MS 5000
 // Some delay to process MQTT messages before going to sleep
-#define SLEEP_AFTER_MS             2000
+#define SLEEP_AFTER_MS             3000
 // Time to wait before going to sleep if we loose connection to the broker
 #define SLEEP_AFTER_DISCONNECT_MS  120000
 // Some delay to process MQTT messages before going to sleep
 #define DELAY_AFTER_PUBLISH_MS     500
+
+#define CONN_FAILED_TIMEOUT_MS             10 * 60 * 1000 // 10 minutes
+#define WIFI_CONNECTING_TIMEOUT_MS         30 * 1000      // 30 seconds
+#define MQTT_RECONN_PERIOD_MS              5 * 1000       // 5 seconds
+#define SLEEP_AFTER_DISCONN_FROM_BROKER_MS 2 * 60 * 1000  // 2 minutes
 
 // IO pins
 #define SDA_PIN          0

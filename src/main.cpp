@@ -14,194 +14,21 @@ PubSubClient mqttClient(espClient);
 
 INA226 ina226(Wire);
 
-// Forward declarations
-uint8_t read_ina226_values(void);
-void callback(String topic, byte *payload, unsigned int length);
-void reconnect(void);
-void publish_data(void);
-void led_fade_on(uint8_t led_pin, int brightness, uint32_t period);
-void led_fade_off(uint8_t led_pin, int brightness, uint32_t period);
-uint8_t reconnect_and_publish();
-void go_to_light_sleep();
+enum
+{
+    WIFI_DISABLED,
+    WIFI_CONNECTING,
+    WIFI_CONNECTED,
+    CONNECTED_TO_BROKER,
+} stage;
 
 // EEPROM variables
 float calculated_wh;
 // Global variables
 float measured_V, measured_A, measured_P;
-uint8_t light_sleep_enabled = 1, wifi_sleep_enabled = 1, light_enabled;
-uint32_t reconn_time, timestamp_last_published;
-
-void setup()
-{
-    EEPROM.begin(4);
-    // EEPROM.put(0, calculated_wh); // erase EEPROM
-    EEPROM.get(0, calculated_wh);
-
-    Wire.begin(SDA_PIN, SCL_PIN);
-
-    pinMode(INA226_ALERT_PIN, INPUT_PULLUP);
-    pinMode(STATUS_LED, OUTPUT);
-    digitalWrite(STATUS_LED, 1);
-
-    WiFi.mode(WIFI_OFF);
-    WiFi.hostname(HOSTNAME);
-
-    // Arduino OTA initializing
-    ArduinoOTA.setHostname(OTA_HOSTNAME);
-    ArduinoOTA.setPassword(OTA_PASSWORD);
-    ArduinoOTA.begin();
-    ArduinoOTA.onStart([]()
-                       {
-                        wifi_sleep_enabled = 0;
-                        digitalWrite(STATUS_LED, 1); });
-
-    // MQTT initializing
-    mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
-    mqttClient.setCallback(callback);
-    // reconnect();
-
-    ina226.begin(INA226_ADDRESS);
-    ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
-                     INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
-    ina226.calibrate(0.00075, 40);
-    ina226.enableConversionReadyAlert();
-
-    led_fade_off(STATUS_LED, 255, 2);
-}
-
-void loop()
-{
-    read_ina226_values();
-
-    if (millis() - timestamp_last_published > PUBLISH_INTERVAL_SLOW_MS ||
-        !timestamp_last_published ||
-        !wifi_sleep_enabled)
-    {
-        if (reconnect_and_publish())
-        {
-            timestamp_last_published = millis();
-        }
-    }
-
-    if (light_sleep_enabled && wifi_sleep_enabled)
-        go_to_light_sleep();
-
-    yield();
-}
-
-uint8_t reconnect_and_publish()
-{
-    static uint8_t stage;
-    static uint32_t timestamp_on_begin, timestamp_after_connection, timestamp_last_published, disconnected_time_stamp;
-
-    switch (stage)
-    {
-        case 0:
-            timestamp_on_begin = millis();
-            analogWrite(STATUS_LED, 10);
-            // Setup WiFi connection
-            WiFi.mode(WIFI_STA);
-            WiFi.begin(WIFI_SSID, WIFI_PASSWD);
-            WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
-            stage++;
-            light_sleep_enabled = 0;
-            break;
-        case 1:
-            // Wait for WiFi connection
-            if (WiFi.status() == WL_CONNECTED)
-            {
-                stage++;
-            }
-            else
-            {
-                if (millis() - timestamp_on_begin > MAX_WIFI_RECONNECT_TIME_MS)
-                {
-                    stage = 4;
-                }
-                // Delay for Light Sleep to be enabled
-                delay(350);
-            }
-            break;
-        case 2:
-            if (mqttClient.loop())
-            {
-                reconn_time = millis() - timestamp_on_begin;
-                timestamp_after_connection = millis();
-                stage++;
-            }
-            // If we are not connected to the MQTT broker, try to reconnect every RECONNECT_DELAY_MS
-            else
-            {
-                if (millis() - timestamp_on_begin > MAX_MQTT_RECONNECT_TIME_MS)
-                {
-                    stage = 4;
-                }
-                else
-                {
-                    reconnect();
-                }
-                // Delay for Light Sleep to be enabled
-                delay(350);
-            }
-            break;
-        case 3:
-            if (wifi_sleep_enabled && millis() - timestamp_after_connection > SLEEP_AFTER_MS)
-            {
-                stage++;
-            }
-            // Main second loop when sleep mode disabled
-            else
-            {
-                ArduinoOTA.handle();
-                uint8_t connected_to_broker = mqttClient.loop();
-
-                if (millis() - timestamp_last_published > PUBLISH_INTERVAL_FAST_MS)
-                {
-                    timestamp_last_published = millis();
-                    // Publish data
-                    publish_data();
-                }
-                // Save timestamp when loose connection to the broker
-                if (!connected_to_broker && !disconnected_time_stamp)
-                    disconnected_time_stamp = millis();
-                else if (connected_to_broker && disconnected_time_stamp)
-                    disconnected_time_stamp = 0;
-
-                // Fall asleep after some time if can't connect to the broker
-                if (disconnected_time_stamp && millis() - disconnected_time_stamp > SLEEP_AFTER_DISCONNECT_MS)
-                {
-                    stage++;
-                }
-            }
-            break;
-        case 4:
-            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
-            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
-            mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
-            delay(DELAY_AFTER_PUBLISH_MS);
-            // Wait the data to be published
-            espClient.flush();
-            // Go back to the powersave mode
-            WiFi.mode(WIFI_OFF);
-            stage = 0;
-            light_sleep_enabled = 1;
-            analogWrite(STATUS_LED, 0);
-            return 1;
-            break;
-    }
-
-    return 0;
-}
-
-void go_to_light_sleep()
-{
-    wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
-    // only LOLEVEL or HILEVEL interrupts work, no edge, that's an SDK or CPU limitation
-    gpio_pin_wakeup_enable(GPIO_ID_PIN(INA226_ALERT_PIN), GPIO_PIN_INTR_LOLEVEL);
-    wifi_fpm_open();
-    wifi_fpm_do_sleep(0xFFFFFFF); // only 0xFFFFFFF, any other value and it won't disconnect the RTC timer
-    delay(10);                    // it goes to sleep during this delay() and waits for an interrupt
-}
+uint8_t wifi_sleep_enabled = 1, light_enabled = 1, mqtt_conn;
+uint32_t timestamp_on_wifi_begin, timestamp_last_published, timestamp_last_mqtt_reconn;
+uint32_t timestamp_on_mqtt_begin, timestamp_conn_failed, timestamp_pub_started, timestamp_sleep_mode_started;
 
 uint8_t read_ina226_values(void)
 {
@@ -273,6 +100,8 @@ void callback(String topic, byte *payload, unsigned int length)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
             wifi_sleep_enabled = 1;
+            // Need to sleep immediately
+            timestamp_pub_started = 0;
         }
         else if (msgString == MQTT_CMD_OFF && wifi_sleep_enabled)
         {
@@ -351,4 +180,208 @@ void led_fade_off(uint8_t led_pin, int brightness, uint32_t period)
         analogWrite(led_pin, brightness);
         delay(period);
     }
+}
+
+/**
+ * @brief Light sleep mode
+ *
+ * @note Call this function only if you are sure that the ESP8266 will be woken up by the interrupt
+ * @note This function must be called whem WiFi disabled
+ */
+void go_to_light_sleep()
+{
+    wifi_set_opmode(NULL_MODE);
+    wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
+    // only LOLEVEL or HILEVEL interrupts work, no edge, that's an SDK or CPU limitation
+    gpio_pin_wakeup_enable(GPIO_ID_PIN(INA226_ALERT_PIN), GPIO_PIN_INTR_LOLEVEL);
+    wifi_fpm_open();
+    wifi_fpm_do_sleep(0xFFFFFFF); // only 0xFFFFFFF, any other value and it won't disconnect the RTC timer
+    delay(10);                    // it goes to sleep during this delay() and waits for an interrupt
+    wifi_fpm_close();
+}
+
+void state_machine(uint8_t sleep_mode)
+{
+    switch (stage)
+    {
+        case WIFI_DISABLED:
+            go_to_light_sleep();
+            uint8_t begin_wifi;
+            begin_wifi = 0;
+
+            if (sleep_mode)
+            {
+                if (!timestamp_sleep_mode_started || millis() - timestamp_sleep_mode_started > PUBLISH_INTERVAL_SLOW_MS)
+                {
+                    begin_wifi = 1;
+                }
+            }
+            else
+            {
+                if (!timestamp_conn_failed || millis() - timestamp_conn_failed > CONN_FAILED_TIMEOUT_MS)
+                {
+                    begin_wifi = 1;
+                }
+            }
+
+            if (begin_wifi)
+            {
+                // Setup WiFi connection
+                WiFi.mode(WIFI_STA);
+                WiFi.begin(WIFI_SSID, WIFI_PASSWD);
+                WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
+                timestamp_on_wifi_begin = millis();
+                stage = WIFI_CONNECTING;
+            }
+            break;
+
+        case WIFI_CONNECTING:
+            // Blink with LED while connecting
+            digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
+            delay(50); // Delay for yield
+
+            // If lost WIFi connection
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                stage = WIFI_CONNECTED;
+            }
+            else if (millis() - timestamp_on_wifi_begin > WIFI_CONNECTING_TIMEOUT_MS)
+            {
+                WiFi.mode(WIFI_OFF);
+                digitalWrite(STATUS_LED, 0);
+                timestamp_conn_failed = millis();
+                timestamp_on_mqtt_begin = millis();
+                stage = WIFI_DISABLED;
+            }
+            break;
+
+        case WIFI_CONNECTED:
+            // Blink with LED while connecting
+            digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
+            delay(50); // Delay for yield
+
+            ArduinoOTA.handle();
+
+            // If lost WIFi connection
+            if (WiFi.status() != WL_CONNECTED)
+            {
+                timestamp_on_wifi_begin = millis();
+                stage = WIFI_CONNECTING;
+            }
+            else
+            {
+                // If connected to MQTT broker
+                if (mqttClient.loop())
+                {
+                    timestamp_on_mqtt_begin = 0;
+                    timestamp_pub_started = millis();
+                    analogWrite(STATUS_LED, 10);
+                    stage = CONNECTED_TO_BROKER;
+                }
+                else if (!timestamp_last_mqtt_reconn || millis() - timestamp_last_mqtt_reconn > MQTT_RECONN_PERIOD_MS)
+                {
+                    reconnect();
+                    timestamp_last_mqtt_reconn = millis();
+                }
+                else if (millis() - timestamp_on_mqtt_begin > SLEEP_AFTER_DISCONN_FROM_BROKER_MS)
+                {
+                    // Go back to the power save mode
+                    WiFi.mode(WIFI_OFF);
+                    digitalWrite(STATUS_LED, 0);
+                    timestamp_conn_failed = millis();
+                    stage = WIFI_DISABLED;
+                }
+            }
+            break;
+
+        case CONNECTED_TO_BROKER:
+            ArduinoOTA.handle();
+            mqtt_conn = mqttClient.loop();
+
+            // If lost WIFi connection
+            if (WiFi.status() != WL_CONNECTED)
+            {
+                timestamp_on_wifi_begin = millis();
+                stage = WIFI_CONNECTING;
+            }
+            else
+            {
+                if (!mqtt_conn)
+                {
+                    timestamp_on_mqtt_begin = millis();
+                    stage = WIFI_CONNECTED;
+                }
+                else if (millis() - timestamp_last_published > PUBLISH_INTERVAL_FAST_MS)
+                {
+                    publish_data();
+                    timestamp_last_published = millis();
+                }
+            }
+
+            if (sleep_mode)
+            {
+                if (!timestamp_pub_started || millis() - timestamp_pub_started > SLEEP_AFTER_MS)
+                {
+                    mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+                    mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+                    mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+                    delay(DELAY_AFTER_PUBLISH_MS);
+                    // Wait the data to be published
+                    espClient.flush();
+                    // Go back to the power save mode
+                    WiFi.mode(WIFI_OFF);
+                    digitalWrite(STATUS_LED, 0);
+                    timestamp_conn_failed = 0;
+                    timestamp_sleep_mode_started = millis();
+                    stage = WIFI_DISABLED;
+                }
+            }
+            break;
+    }
+}
+
+void setup()
+{
+    EEPROM.begin(4);
+    // EEPROM.put(0, calculated_wh); // erase EEPROM
+    EEPROM.get(0, calculated_wh);
+
+    Wire.begin(SDA_PIN, SCL_PIN);
+
+    pinMode(INA226_ALERT_PIN, INPUT_PULLUP);
+    pinMode(STATUS_LED, OUTPUT);
+    digitalWrite(STATUS_LED, 1);
+
+    WiFi.mode(WIFI_OFF);
+    WiFi.hostname(HOSTNAME);
+
+    // Arduino OTA initializing
+    ArduinoOTA.setHostname(OTA_HOSTNAME);
+    ArduinoOTA.setPassword(OTA_PASSWORD);
+    ArduinoOTA.begin();
+    ArduinoOTA.onStart([]()
+                       {
+                        wifi_sleep_enabled = 0;
+                        digitalWrite(STATUS_LED, 1); });
+
+    // MQTT initializing
+    mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
+    mqttClient.setCallback(callback);
+
+    ina226.begin(INA226_ADDRESS);
+    ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
+                     INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
+    ina226.calibrate(0.00075, 40);
+    ina226.enableConversionReadyAlert();
+
+    led_fade_off(STATUS_LED, 255, 2);
+}
+
+void loop()
+{
+    read_ina226_values();
+
+    state_machine(wifi_sleep_enabled);
+
+    yield();
 }

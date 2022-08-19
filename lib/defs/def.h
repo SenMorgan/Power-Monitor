@@ -12,7 +12,7 @@
 
 // INA226 settings
 #define SHUNT_VALUE            0.00075F
-#define MAX_CURRENT_EXCEPTED_A 40.0F
+#define MAX_CURRENT_EXCEPTED_A 10.0F
 
 // MQTT definitions
 #define DEFAULT_TOPIC             "/power-monitor/"

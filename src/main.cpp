@@ -251,7 +251,6 @@ void state_machine(uint8_t sleep_mode)
                 // Setup WiFi connection
                 WiFi.mode(WIFI_STA);
                 WiFi.begin(WIFI_SSID, WIFI_PASSWD);
-                WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 3); // Automatic Light Sleep, DTIM listen interval = 3
                 timestamp_on_wifi_begin = millis();
                 stage = WIFI_CONNECTING;
             }

@@ -10,6 +10,10 @@
 #ifndef _DEF_H_
 #define _DEF_H_
 
+// INA226 settings
+#define SHUNT_VALUE            0.00075F
+#define MAX_CURRENT_EXCEPTED_A 40.0F
+
 // MQTT definitions
 #define DEFAULT_TOPIC             "/power-monitor/"
 #define MQTT_WILL_TOPIC           DEFAULT_TOPIC "availability"

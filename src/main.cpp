@@ -366,7 +366,7 @@ void setup()
     // When set INA226_AVERAGES_64 and INA226_SHUNT_CONV_TIME_8244US, the period is about 1 second
     ina226.configure(INA226_AVERAGES_64, INA226_BUS_CONV_TIME_8244US,
                      INA226_SHUNT_CONV_TIME_8244US, INA226_MODE_SHUNT_BUS_CONT);
-    ina226.calibrate(0.00075, 40);
+    ina226.calibrate(SHUNT_VALUE, MAX_CURRENT_EXCEPTED_A);
     ina226.enableConversionReadyAlert();
 
     led_fade_off(STATUS_LED, 255, 2);

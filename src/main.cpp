@@ -25,7 +25,7 @@ enum
 // EEPROM variables
 float calculated_wh;
 // Global variables
-float measured_V, measured_A, measured_P;
+float measured_V, measured_A, measured_P, saved_V, saved_A, saved_P;
 uint8_t wifi_sleep_enabled = 1, light_enabled = 1, mqtt_conn;
 uint32_t timestamp_on_wifi_begin, timestamp_last_published, timestamp_last_mqtt_reconn;
 uint32_t timestamp_on_mqtt_begin, timestamp_conn_failed, timestamp_pub_started, timestamp_sleep_mode_started;
@@ -151,17 +151,29 @@ void reconnect(void)
 /**
  * @brief Publish data to broker
  */
-void publish_data(void)
+void publish_data(uint8_t send_only_saved_data)
 {
     static char buff[20];
 
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
-    sprintf(buff, "%0.3f", measured_V);
-    mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
-    sprintf(buff, "%0.3f", measured_A);
-    mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
-    sprintf(buff, "%0.3f", measured_P);
-    mqttClient.publish(MQTT_STATE_TOPIC_WATT, buff);
+    if (send_only_saved_data)
+    {
+        sprintf(buff, "%0.3f", saved_V);
+        mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
+        sprintf(buff, "%0.3f", saved_A);
+        mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
+        sprintf(buff, "%0.3f", saved_P);
+        mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
+    }
+    else
+    {
+        sprintf(buff, "%0.3f", measured_V);
+        mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
+        sprintf(buff, "%0.3f", measured_A);
+        mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
+        sprintf(buff, "%0.3f", measured_P);
+    }
+    mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
     sprintf(buff, "%f", calculated_wh);
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
     sprintf(buff, "%d", signal_quality);
@@ -192,7 +204,7 @@ void led_fade_off(uint8_t led_pin, int brightness, uint32_t period)
  * @brief Light sleep mode
  *
  * @note Call this function only if you are sure that the ESP8266 will be woken up by the interrupt
- * @note This function must be called whem WiFi disabled
+ * @note This function must be called when WiFi disabled
  */
 void go_to_light_sleep()
 {
@@ -220,6 +232,10 @@ void state_machine(uint8_t sleep_mode)
                 if (!timestamp_sleep_mode_started || millis() - timestamp_sleep_mode_started > PUBLISH_INTERVAL_SLOW_MS)
                 {
                     begin_wifi = 1;
+                    // We will save the values before powering ON WiFi, to avoid noise in power circuit
+                    saved_V = measured_V;
+                    saved_A = measured_A;
+                    saved_P = measured_P;
                 }
             }
             else
@@ -321,7 +337,7 @@ void state_machine(uint8_t sleep_mode)
                 }
                 else if (millis() - timestamp_last_published > PUBLISH_INTERVAL_FAST_MS)
                 {
-                    publish_data();
+                    publish_data(sleep_mode);
                     timestamp_last_published = millis();
                 }
             }

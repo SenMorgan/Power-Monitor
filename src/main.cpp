@@ -113,6 +113,7 @@ void callback(String topic, byte *payload, unsigned int length)
         if (msgString == MQTT_CMD_ON && !wifi_sleep_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            delay(DELAY_AFTER_PUBLISH_MS);
             wifi_sleep_enabled = 1;
             // Need to sleep immediately
             timestamp_pub_started = 0;

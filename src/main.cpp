@@ -265,6 +265,7 @@ void state_machine(uint8_t sleep_mode)
             // If lost WIFi connection
             if (WiFi.status() == WL_CONNECTED)
             {
+                timestamp_last_mqtt_reconn = 0;
                 stage = WIFI_CONNECTED;
             }
             else if (millis() - timestamp_on_wifi_begin > MAX_WIFI_RECONN_TIME_MS)
@@ -280,7 +281,7 @@ void state_machine(uint8_t sleep_mode)
         case WIFI_CONNECTED:
             // Blink with LED while connecting
             digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
-            delay(50); // Delay for yield
+            delay(10); // Delay for yield
 
             ArduinoOTA.handle();
 

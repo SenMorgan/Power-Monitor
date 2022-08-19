@@ -272,6 +272,7 @@ void state_machine(uint8_t sleep_mode)
             if (WiFi.status() != WL_CONNECTED)
             {
                 timestamp_on_wifi_begin = millis();
+                WiFi.reconnect();
                 stage = WIFI_CONNECTING;
             }
             else

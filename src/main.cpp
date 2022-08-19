@@ -29,6 +29,7 @@ float measured_V, measured_A, measured_P;
 uint8_t wifi_sleep_enabled = 1, light_enabled = 1, mqtt_conn;
 uint32_t timestamp_on_wifi_begin, timestamp_last_published, timestamp_last_mqtt_reconn;
 uint32_t timestamp_on_mqtt_begin, timestamp_conn_failed, timestamp_pub_started, timestamp_sleep_mode_started;
+int8_t signal_quality;
 
 uint8_t read_ina226_values(void)
 {
@@ -66,6 +67,15 @@ uint8_t read_ina226_values(void)
     }
 
     return 0;
+}
+
+int8_t read_signal_quality()
+{
+    int ss = WiFi.RSSI();
+    ss = isnan(ss) ? -100 : ss;
+    ss = min(max(2 * (ss + 100), 0), 100);
+
+    return (int8_t)ss;
 }
 
 /**
@@ -154,6 +164,8 @@ void publish_data(void)
     mqttClient.publish(MQTT_STATE_TOPIC_WATT, buff);
     sprintf(buff, "%f", calculated_wh);
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
+    sprintf(buff, "%d", signal_quality);
+    mqttClient.publish(MQTT_STATE_TOPIC_SIG, buff);
     sprintf(buff, "%ld", millis() / 1000);
     mqttClient.publish(MQTT_STATE_TOPIC_UPTIME, buff);
 }
@@ -291,6 +303,7 @@ void state_machine(uint8_t sleep_mode)
         case CONNECTED_TO_BROKER:
             ArduinoOTA.handle();
             mqtt_conn = mqttClient.loop();
+            signal_quality = read_signal_quality();
 
             // If lost WIFi connection
             if (WiFi.status() != WL_CONNECTED)

@@ -31,6 +31,7 @@
 #define MQTT_STATE_TOPIC_AMP      DEFAULT_TOPIC "state/amp"
 #define MQTT_STATE_TOPIC_WATT     DEFAULT_TOPIC "state/watt"
 #define MQTT_STATE_TOPIC_WH       DEFAULT_TOPIC "state/wh"
+#define MQTT_STATE_TOPIC_SIG      DEFAULT_TOPIC "state/signal-quality"
 #define MQTT_STATE_TOPIC_UPTIME   DEFAULT_TOPIC "state/uptime"
 #define MQTT_AVAILABILITY_TOPIC   DEFAULT_TOPIC "availability"
 #define MQTT_AVAILABILITY_MESSAGE "online"

@@ -92,7 +92,7 @@ void callback(String topic, byte *payload, unsigned int length)
     {
         if (msgString == MQTT_CMD_ON)
         {
-            mqttClient.publish(MQTT_CMD_TOPIC_WH_RESET, MQTT_CMD_OFF, true);
+            mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
             delay(DELAY_AFTER_PUBLISH_MS);
             ESP.restart();
         }

@@ -177,8 +177,8 @@ void publish_data(uint8_t send_only_saved_data)
         sprintf(buff, "%0.3f", measured_A);
         mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
         sprintf(buff, "%0.3f", measured_P);
-    }
     mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
+    }
     sprintf(buff, "%f", calculated_wh);
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
     sprintf(buff, "%d", signal_quality);

@@ -96,16 +96,16 @@ void callback(String topic, byte *payload, unsigned int length)
         {
             if (!reset_toggled)
             {
-            mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
+                mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
             }
             else
             {
                 mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
                 delay(DELAY_AFTER_PUBLISH_MS);
-            espClient.flush(DELAY_AFTER_PUBLISH_MS);
-            ESP.restart();
+                espClient.flush(DELAY_AFTER_PUBLISH_MS);
+                ESP.restart();
+            }
         }
-    }
         else if (msgString == MQTT_CMD_OFF && !reset_toggled)
         {
             reset_toggled = 1;
@@ -127,6 +127,7 @@ void callback(String topic, byte *payload, unsigned int length)
         if (msgString == MQTT_CMD_ON && !wifi_sleep_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+            delay(DELAY_AFTER_PUBLISH_MS);
             espClient.flush(DELAY_AFTER_PUBLISH_MS);
             wifi_sleep_enabled = 1;
             // Need to sleep immediately
@@ -277,7 +278,7 @@ void state_machine(uint8_t sleep_mode)
         case WIFI_CONNECTING:
             // Blink with LED while connecting
             digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
-            delay(50); // Delay for yield
+            delay(100); // Delay for yield
 
             // If lost WIFi connection
             if (WiFi.status() == WL_CONNECTED)
@@ -298,7 +299,7 @@ void state_machine(uint8_t sleep_mode)
         case WIFI_CONNECTED:
             // Blink with LED while connecting
             digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
-            delay(10); // Delay for yield
+            delay(50); // Delay for yield
 
             ArduinoOTA.handle();
 
@@ -306,7 +307,6 @@ void state_machine(uint8_t sleep_mode)
             if (WiFi.status() != WL_CONNECTED)
             {
                 timestamp_on_wifi_begin = millis();
-                WiFi.reconnect();
                 stage = WIFI_CONNECTING;
             }
             else
@@ -367,6 +367,7 @@ void state_machine(uint8_t sleep_mode)
                     mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
                     mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
                     // Wait the data to be published
+                    delay(DELAY_AFTER_PUBLISH_MS);
                     espClient.flush(DELAY_AFTER_PUBLISH_MS);
                     // Go back to the power save mode
                     WiFi.mode(WIFI_OFF);

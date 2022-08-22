@@ -175,7 +175,7 @@ void publish_data(uint8_t send_only_saved_data)
     static char buff[20];
 
     mqttClient.publish(MQTT_AVAILABILITY_TOPIC, MQTT_AVAILABILITY_MESSAGE);
-    if (send_only_saved_data)
+    if (send_only_saved_data && (saved_V || saved_A || saved_P))
     {
         sprintf(buff, "%0.3f", saved_V);
         mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
@@ -184,7 +184,7 @@ void publish_data(uint8_t send_only_saved_data)
         sprintf(buff, "%0.3f", saved_P);
         mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
     }
-    else
+    else if (measured_V || measured_A || measured_P)
     {
         sprintf(buff, "%0.3f", measured_V);
         mqttClient.publish(MQTT_STATE_TOPIC_VOLT, buff);
@@ -193,12 +193,11 @@ void publish_data(uint8_t send_only_saved_data)
         sprintf(buff, "%0.3f", measured_P);
         mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
     }
-    sprintf(buff, "%f", calculated_wh);
+    sprintf(buff, "%0.3f", calculated_wh);
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
-    sprintf(buff, "%d", signal_quality);
-    mqttClient.publish(MQTT_STATE_TOPIC_SIG, buff);
-    sprintf(buff, "%ld", millis() / 1000);
-    mqttClient.publish(MQTT_STATE_TOPIC_UPTIME, buff);
+
+    mqttClient.publish(MQTT_STATE_TOPIC_SIG, String(signal_quality).c_str());
+    mqttClient.publish(MQTT_STATE_TOPIC_UPTIME, String(millis() / 1000).c_str());
 }
 
 void led_fade_on(uint8_t led_pin, int brightness, uint32_t period)

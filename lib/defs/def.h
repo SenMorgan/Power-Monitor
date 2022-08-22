@@ -42,7 +42,7 @@
 #define PUBLISH_INTERVAL_FAST_MS           1000
 // Interval between publishing data in sleep mode
 #define PUBLISH_INTERVAL_SLOW_MS           60000
-// Some delay to process MQTT messages before going to sleep
+// Some delay to process MQTT messages before going to sleep in sleep mode
 #define SLEEP_AFTER_MS                     3000
 // Time to wait before going to sleep if we loose connection to the broker
 #define SLEEP_AFTER_DISCONN_FROM_BROKER_MS 2 * 60 * 1000 // 2 minutes

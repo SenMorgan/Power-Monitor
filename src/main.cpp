@@ -93,7 +93,7 @@ void callback(String topic, byte *payload, unsigned int length)
         if (msgString == MQTT_CMD_ON)
         {
             mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
-            delay(DELAY_AFTER_PUBLISH_MS);
+            espClient.flush(DELAY_AFTER_PUBLISH_MS);
             ESP.restart();
         }
     }
@@ -113,7 +113,7 @@ void callback(String topic, byte *payload, unsigned int length)
         if (msgString == MQTT_CMD_ON && !wifi_sleep_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
-            delay(DELAY_AFTER_PUBLISH_MS);
+            espClient.flush(DELAY_AFTER_PUBLISH_MS);
             wifi_sleep_enabled = 1;
             // Need to sleep immediately
             timestamp_pub_started = 0;
@@ -177,7 +177,7 @@ void publish_data(uint8_t send_only_saved_data)
         sprintf(buff, "%0.3f", measured_A);
         mqttClient.publish(MQTT_STATE_TOPIC_AMP, buff);
         sprintf(buff, "%0.3f", measured_P);
-    mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
+        mqttClient.publish(MQTT_STATE_TOPIC_POWER, buff);
     }
     sprintf(buff, "%f", calculated_wh);
     mqttClient.publish(MQTT_STATE_TOPIC_WH, buff);
@@ -270,6 +270,7 @@ void state_machine(uint8_t sleep_mode)
             if (WiFi.status() == WL_CONNECTED)
             {
                 timestamp_last_mqtt_reconn = 0;
+                timestamp_on_mqtt_begin = millis();
                 stage = WIFI_CONNECTED;
             }
             else if (millis() - timestamp_on_wifi_begin > MAX_WIFI_RECONN_TIME_MS)
@@ -277,7 +278,6 @@ void state_machine(uint8_t sleep_mode)
                 WiFi.mode(WIFI_OFF);
                 digitalWrite(STATUS_LED, 0);
                 timestamp_conn_failed = millis();
-                timestamp_on_mqtt_begin = millis();
                 stage = WIFI_DISABLED;
             }
             break;
@@ -351,12 +351,10 @@ void state_machine(uint8_t sleep_mode)
             {
                 if (!timestamp_pub_started || millis() - timestamp_pub_started > SLEEP_AFTER_MS)
                 {
-                    mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
                     mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
                     mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
-                    delay(DELAY_AFTER_PUBLISH_MS);
                     // Wait the data to be published
-                    espClient.flush();
+                    espClient.flush(DELAY_AFTER_PUBLISH_MS);
                     // Go back to the power save mode
                     WiFi.mode(WIFI_OFF);
                     digitalWrite(STATUS_LED, 0);

@@ -83,6 +83,7 @@ int8_t read_signal_quality()
  */
 void callback(String topic, byte *payload, unsigned int length)
 {
+    static uint8_t reset_toggled;
     String msgString = "";
     for (uint16_t i = 0; i < length; i++)
         msgString += (char)payload[i];
@@ -90,11 +91,24 @@ void callback(String topic, byte *payload, unsigned int length)
     // Reset board when received "reset" message
     if (topic == (MQTT_CMD_TOPIC_RESET))
     {
+        // We need to add reset_toggled flag, to prevent resetting the board twice
         if (msgString == MQTT_CMD_ON)
         {
+            if (!reset_toggled)
+            {
             mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
+            }
+            else
+            {
+                mqttClient.publish(MQTT_CMD_TOPIC_RESET, MQTT_CMD_OFF, true);
+                delay(DELAY_AFTER_PUBLISH_MS);
             espClient.flush(DELAY_AFTER_PUBLISH_MS);
             ESP.restart();
+        }
+    }
+        else if (msgString == MQTT_CMD_OFF && !reset_toggled)
+        {
+            reset_toggled = 1;
         }
     }
     else if (topic == (MQTT_CMD_TOPIC_WH_RESET))

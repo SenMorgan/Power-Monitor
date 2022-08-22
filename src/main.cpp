@@ -26,7 +26,7 @@ enum
 float calculated_wh;
 // Global variables
 float measured_V, measured_A, measured_P, saved_V, saved_A, saved_P;
-uint8_t wifi_sleep_enabled = 1, light_enabled = 1, mqtt_conn;
+uint8_t wifi_sleep_enabled = 1, light_enabled, mqtt_conn;
 uint32_t timestamp_on_wifi_begin, timestamp_last_published, timestamp_last_mqtt_reconn;
 uint32_t timestamp_on_mqtt_begin, timestamp_conn_failed, timestamp_pub_started, timestamp_sleep_mode_started;
 int8_t signal_quality;

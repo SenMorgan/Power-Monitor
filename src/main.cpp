@@ -40,7 +40,6 @@ uint8_t read_ina226_values(void)
     {
         // Erase alert
         ina226.isAlert();
-        last_meas_timestamp = millis();
 
         measured_V = ina226.readBusVoltage();
         measured_A = ina226.readShuntCurrent();
@@ -50,7 +49,7 @@ uint8_t read_ina226_values(void)
 
         if (last_meas_timestamp > 0)
         {
-            calculated_wh += float(((time_now - last_meas_timestamp) * measured_P) / 3600000.0f);
+            calculated_wh += (float(time_now - last_meas_timestamp) * measured_P) / 3600000.0f;
         }
         last_meas_timestamp = time_now;
 

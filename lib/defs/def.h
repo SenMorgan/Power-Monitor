@@ -25,6 +25,7 @@
 #define MQTT_CMD_TOPIC_SLEEP      DEFAULT_TOPIC "set/sleep"
 #define MQTT_CMD_TOPIC_WH_RESET   DEFAULT_TOPIC "set/wh-reset"
 #define MQTT_CMD_TOPIC_LIGHT      DEFAULT_TOPIC "set/light"
+#define MQTT_CMD_TOPIC_SET_WH     DEFAULT_TOPIC "set/wh"
 #define MQTT_STATE_TOPIC_LIGHT    DEFAULT_TOPIC "state/light"
 #define MQTT_STATE_TOPIC_SLEEP    DEFAULT_TOPIC "state/sleep"
 #define MQTT_STATE_TOPIC_VOLT     DEFAULT_TOPIC "state/volt"

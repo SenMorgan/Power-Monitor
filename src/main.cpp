@@ -153,6 +153,12 @@ void callback(String topic, byte *payload, unsigned int length)
             light_enabled = 0;
         }
     }
+    else if (topic == MQTT_CMD_TOPIC_SET_WH)
+    {
+        calculated_wh = msgString.toFloat();
+        EEPROM.put(0, calculated_wh);
+        EEPROM.commit();
+    }
 }
 
 /**
